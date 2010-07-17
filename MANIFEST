@@ -1,0 +1,16 @@
+CHANGELOG
+lib/IO/Event/Callback.pm
+lib/IO/Event.pm
+lib/IO/Event.pod
+Makefile.PL
+MANIFEST
+META.yml
+README
+rinetd.pl
+t/callbacks2.t
+t/callbacks.t
+t/forked2.t
+t/forked.t
+t/getline.t
+t/multifork2.t
+t/multifork.t
