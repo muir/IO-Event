@@ -22,7 +22,11 @@ WriteMakefile(
 		'Net::Netmask' => 0,
 		'Daemon::Generic' => 0,
 		'List::MoreUtils' => 0,
-	 },
+	},
+	'BUILD_REQUIRES' => {
+		'Event' => 0,
+		'AnyEvent' => 0,
+	}
 );
 
 package MY;

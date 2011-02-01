@@ -5,7 +5,9 @@ if ($@) {
 	print "1..0 # Skip AnyEvent not installed\n";
 	exit 0;
 }
-use IO::Event 'AnyEvent';
+
 use FindBin;
-require "$FindBin::Bin/forked.tt";
+use IO::Event;
+import IO::Event 'AnyEvent';
+require "$FindBin::Bin/callbacks.tt";
 
