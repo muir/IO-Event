@@ -510,6 +510,9 @@ BUGS
     author and seems solid.
 
 LICENSE
-    Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>. This
-    module may be used/copied/etc on the same terms as Perl itself.
+    Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>.
+
+    Copyright (C) 2011 Google, Inc.
+
+    This module may be used/copied/etc on the same terms as Perl itself.
 
