@@ -134,4 +134,28 @@ Instead of defining a class with methods like "ie_input", you
 provide the callbacks as code references when you create
 the object.
 
+The keys for the callbacks are the same as the callbacks 
+for L<IO::Event> with the C<ie_> prefix removed.
+
+=head1 EXAMPLE
+
+ use IO::Event::Callback;
+
+ my $remote = IO::Event::Callback::INET->new(
+	peeraddr	=> '10.20.10.3',
+	peerport	=> '23',
+	input		=> sub { 
+		# handle input
+	},
+	werror		=> sub {
+		# handdle error
+	},
+	eof		=> sub {
+		# handle end-of-file
+	},
+ );
+
+=head1 SEE ALSO
+
+See the source for L<RPC::ToWorker> for an exmaple use of IO::Event::Callback.
 

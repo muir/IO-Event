@@ -2,5 +2,5 @@
 
 use IO::Event 'emulate_Event';
 use FindBin;
-require "$FindBin::Bin/forked.tt";
+require "$FindBin::Bin/getline.tt";
 

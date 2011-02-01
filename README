@@ -4,6 +4,8 @@ NAME
 SYNOPSIS
      use IO::Event;
      use IO::Event 'emulate_Event';
+     use IO::Event 'AnyEvent';
+
 
      my $ioe = IO::Event->new($filehandle);
 
@@ -11,7 +13,16 @@ SYNOPSIS
 
      my $ioe = IO::Event::Socket::UNIX->new( [ARGS] )
 
-     my $timer = IO::Event->timer(interval => $seconds);
+     my $timer = IO::Event::timer(
+            [after => $seconds],
+            interval => $seconds,
+            cb => CODE);
+
+     my $idler = IO::Event::idle(
+            [min => $seconds], 
+            [max => $seconds],
+            [reentrant => 0],
+            cb => CODE);
 
      IO::Event::loop();
 
@@ -31,9 +42,88 @@ DESCRIPTION
 
     After initial setup, call "IO::Event::loop()".
 
-    IO::Event was originally written to use Event. It turns out that Event
-    has bugs and now IO::Event can provide it's own select loop instead of
-    using the one from Event.
+    IO::Event was originally written to use Event. IO::Event still defaults
+    to using Event but it can now use AnyEvent or its own event loop.
+
+CHOOSING AN EVENT HANDLER
+    Until you create your first IO::Event object, you can choose which
+    underlying event handler to use. The default is Event. To choose an
+    event handler, use one of the following lines, import
+    "no_emulate_Event", "emulate_Event", or "AnyEvent".
+
+     use IO::Event 'no_emulate_Event'
+     use IO::Event 'emulate_Event'
+     use IO::Event 'AnyEvent'
+
+    The "no_emulate_Event" means: use Event. The "emulate_Event" mean
+    IO::Event should use its own event loop.
+
+    Why?
+
+    You should use AnyEvent if you want to have compatibility with other
+    event loops. You should use "emulate_Event" if you don't need
+    compatibility with other event loops and you have missing-event bugs
+    when using Event. You should use Event if it works for you.
+
+    The APIs are a bit different depending on which event loop you're using.
+
+  Event
+    To use Event's event loop:
+
+     use IO::Event 'no_emulate_Event';
+
+    or just:
+
+     use IO::Event
+
+    IO::Event's definition for "loop()", "timer()", "idle()" and
+    "unloop_all()" all default to the Event version unless "emulate_Event"
+    or "AnyEvent" have been imported. This allows you to easily switch back
+    and forth between Event's API and the others.
+
+  AnyEvent
+    To use AnyEvent's select loop, import "AnyEvent".
+
+     use IO::Event 'AnyEvent';
+
+    You can use AnyEvent's API directly or you can use IO::Event's emulated
+    APIs: "IO::Event::loop()", "IO::Event::unloop()", "IO::Event::timer()",
+    and "IO::Event::idle()". These behave like Event's routines of the same
+    name but use AnyEvent underneith.
+
+    During testing, using the pure-perl event loop of AnyEvent::Impl::Perl
+    from AnyEvent version 5.271, some read events were dropped. To work
+    around this, a synthetic read-ready event is dispatched for all
+    connected read filehandles every two seconds. Turn this off or adjust
+    its frequency by changing $IO::Event::AnyEvent::lost_event_hack. A
+    numeric value is the time (in seconds) between dispatching read events.
+    A false value turns off this performance-sapping hack.
+
+    AnyEvent only provides basic support for idle() events: it promises to
+    invoke them "every now and then".
+
+  "emulate_Event"
+    To use IO::Event's select loop, import "emulate_Event".
+
+     use IO::Event 'emulate_Event';
+
+    IO::Event does not provide a complete emulation of everything that Event
+    does. It provides the full timer API:
+
+     my $timer = IO::Event::timer( [ARGS] )
+
+    instead of
+
+     my $timer = Event::timer( [ARGS] )
+
+    However it does not provide timer events on filehandles, nor does it
+    provide events for signals, or variable accesses.
+
+    Use "IO::Event::loop()" instead of "Event::loop()". Use
+    "IO::Event::unloop_all()" instead of "Event::unloop_all()". Use
+    "IO::Event::idle()" instead of "Event::idle()". It does not provide any
+    other methods or functions from Event. If you need them, please send a
+    patch.
 
 CONSTRUCTORS
     IO::Event->new($filehandle, [ $handler, [ $options ]])
@@ -147,8 +237,7 @@ OPTIONAL HANDLERS
         terminate.
 
     ie_timer
-        This is invoked for timer events. These will only arise if set using
-        thing underlying Event object.
+        This is invoked for timer events.
 
     ie_exception
         Invoked when an exceptional condition arises on the underlying
@@ -234,6 +323,7 @@ METHODS
         This is what ungetc() should be: it pushes a string back into the
         input buffer. This is unlike IO::Handle->ungetc which takes an
         ordinal and pushes one character back into the the input buffer.
+        This is like FileHandle::Unget.
 
     ->handler($new_handler)
         Sets the handler object/class if $new_handler is provided. Returns
@@ -294,11 +384,61 @@ METHODS
     ->forceclose
         Close close immediately, even if there is output buffered.
 
+TIMER API
+    The following timer construction arguments are supported by IO::Event's
+    emulated event loop and IO::Event's API on top of AnyEvent:
+
+    cb  A callback to invoke when the timer goes off. The callback can
+        either be a CODE reference or an array reference. If it's an array
+        reference, the array should be a two element tuple: the first
+        element is an object and the second object is a method to invoke on
+        the object. The only argument to the method call a reference to the
+        timer object:
+
+         my ($object, $method) = @{$timer->{cb}}
+         $object->$method($timer)
+
+    at  A time at which to invoke the callback.
+
+    interval
+        An interval, in seconds between repeat invocations of the callback.
+
+    after
+        The interval until the first invocation of the callback. After that,
+        invoke every *interval*.
+
+    The following methods (from Event) are supported on timer objects:
+    start(), again(), now(), stop(), cancel(), is_cancelled(), is_running(),
+    is_suspended(), pending.
+
+IDLE API
+    The following idle construction arguments are supported by IO::Event's
+    emulated event loop and IO::Event's API on top of AnyEvent:
+
+    cb  A callback to invoke when the event loop is idle. The callback can
+        either be a CODE reference or an array reference. If it's an array
+        reference, the array should be a two element tuple: the first
+        element is an object and the second object is a method to invoke on
+        the object.
+
+         my ($object, $method) = @{$timer->{cb}}
+         $object->$method();
+
+    min The minimum time between invocations of the callback.
+
+    max The maximum time between invocations of the callback.
+
+    The following methods (from Event) are supported on idle objects:
+    start(), again(), now(), stop(), cancel(), is_cancelled(), is_running(),
+    is_suspended(), pending.
+
 SUBSTITUED METHODS
     Any method invocations that fail because the method isn't defined in
     IO::Event will by tried twice more: once using trying for a method on
     the inner (hidden) filehandle and once more trying for a method on the
     Event object that's used to create the select loop for this module.
+
+    This dispatch is now deprecated with the choice of event handlers.
 
 EXAMPLE SERVER
             # This is a tcp line echo server
@@ -337,39 +477,6 @@ SYSREAD and EOF
     come to light and IO::Event uses syswrite and never any other form of
     write/print etc.
 
-AVOIDING Event.pm
-    If you find that your IO::Event program works fine for a while and then
-    slows down or fails to receive all the events you expect, the problem
-    may be in Event. IO::Event can optionally use it's own select loop
-    instead of Event.
-
-    To use IO::Event's select loop, import "emulate_Event".
-
-     use IO::Event 'emulate_Event';
-
-    IO::Event does not provide a complete emulation of everything that Event
-    does. It provides the full timer API:
-
-     my $timer = IO::Event::timer( [ARGS] )
-
-    instead of
-
-     my $timer = Event::timer( [ARGS] )
-
-    However it does not provide timer events on filehandles, nor does it
-    provide events for signals, or variable accesses.
-
-    Use "IO::Event::loop()" instead of "Event::loop()". Use
-    "IO::Event::unloop_all()" instead of "Event::unloop_all()". It does not
-    provide any other methods or functions from Event. If you need them,
-    please send a patch.
-
-    IO::Event's definition for "loop()", "timer()", and "unloop_all()"
-    defaults to the Event version unless "emulate_Event" has been imported.
-    This allows you to easily switch back and forth between Event's
-    dispatcher and IO::Event's version. IO::Event's version is generally
-    lower performance but it seems to be more reliable.
-
 DATA STRUCTURE
     The filehandle object itself is a funny kind of hash reference. If you
     want to use it to store your own data, you can. Please don't use hash
@@ -378,24 +485,25 @@ DATA STRUCTURE
 
     The syntax is kinda funny:
 
-            ${*$filehandle}{'your_hash_key'}  
+            ${*$filehandle}{'your_hash_key'}
 
 SEE ALSO
+    For a different API on top of IO::Event, see IO::Event::Callback. It
+    uses IO::Event but provides a simpler and perhaps easier-to-use API.
+
     The following perl modules do something that is kinda similar to what is
     being done here:
 
-            IO::Multiplex
-            IO::NonBlocking
-            IO::Select
-            Event
-            POE
-            POE::Component::Server::TCP
-            Net::Socket::NonBlock
-            Net::Server::Multiplex
-            NetServer::Generic
+    AnyEvent::Handle, AnyEvent::AIO, IO::AIO, IO::Multiplex,
+    IO::NonBlocking, IO::Select Event, POE, POE::Component::Server::TCP,
+    Net::Socket::NonBlock, Net::Server::Multiplex, NetServer::Generic
 
     The API borrows most heavily from IO::Multiplex. IO::Event uses Event.pm
     and thus can be used in programs that are already using Event or POE.
+
+    Since the original writing of IO::Event, AnyEvent has been released and
+    now AnyEvent::AIO and <AnyEvent:Handle> should be considered the only
+    good alternatives to IO::Event.
 
 BUGS
     The test suite only covers 40% of the code. The module is used by its

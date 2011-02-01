@@ -35,53 +35,17 @@ sub dofork
 				|| die "socketpair: $!";
 			if ($pid = fork()) {
 				# parent
-#sleep(0.1);
+sleep(0.1);
 				$newstdout->close();
-
-				if (0 && 'CRAZY_STUFF') { 
-					use IO::Pipe;
-					my $pipe = new IO::Pipe;
-
-					if (fork()) {
-						$newstdout->close();
-						$pipe->reader();
-						$psideCapture = $pipe;
-					} else {
-						$pipe->writer();
-						my $fn = $pipe->fileno();
-						open(STDOUT, ">&=$fn") || die "redirect stdout2: $!";
-						$fn = $psideCapture->fileno();
-						open(STDIN, "<&=", $fn) || die "redirect stdin: $!";
-						exec("tee bar.$$") || die "exec: $!";
-					}
-				}
-
 				Test::XMultiFork::Capture->new($psideCapture, $letter, $n);
 
 			} elsif (defined $pid) {
 				# child
 				$psideCapture->close();
+				# we aren't interested in the other filehandles
 				for my $c (keys %capture) {
 					$capture{$c}{ie}->close();
 					delete $capture{$c};
-				}
-				if (0 && 'CRAZY_STUFF') { 
-					use IO::Pipe;
-					my $pipe = new IO::Pipe;
-
-					if (fork()) {
-						$newstdout->close();
-						$pipe->writer();
-						$newstdout = $pipe;
-					} else {
-						my $fn = $newstdout->fileno();
-						open(STDOUT, ">&=$fn") || die "redirect stdout2: $!";
-						$pipe->reader();
-						$fn = $pipe->fileno();
-						#close(STDIN);
-						open(STDIN, "<&=", $fn) || die "redirect stdin: $!";
-						exec("tee foo.$$") || die "exec: $!";
-					}
 				}
 
 				$newstdout->autoflush(1);
@@ -136,7 +100,7 @@ sub new
 		plan	=> undef,
 		code	=> "$letter-$n",
 	}, $pkg;
-	$self->{ie} = IO::Event->new($fh, $self);
+	$self->{ie} = IO::Event->new($fh, $self, "For $letter$n");
 	$capture{$self->{code}} = $self;
 	return $self;
 }
@@ -224,5 +188,7 @@ ok(9, "nine$$");
 sleep(0.1) if rand(1) < .3;
 ok(10, "ten$$");
 sleep(0.1) if rand(1) < .3;
+
+exit(0);
 
 1;

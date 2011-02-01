@@ -2,7 +2,7 @@
 
 use strict;
 
-my $slowest = 4;
+my $slowest = 5;
 
 my $debug = 0;
 my $c = 1;
@@ -18,11 +18,18 @@ my $hostname = hostname;
 my $addr = join('.',unpack('C4',gethostbyname($hostname)));
 print STDERR "host = $hostname addr = $addr.\n" if $debug;
 
+my $tnum;
+
 package T;
 
 use IO::Event;
 use IO::Socket::INET;
 use Carp;
+use strict;
+use warnings;
+
+our $last_send = 0;
+our $last_receive = 0;
 
 BEGIN {
 	eval { require Time::HiRes };
@@ -43,10 +50,9 @@ our (@tests) = (
 		# the first one is thrown away
 	},
 	{ #2
-		send =>		sub {
-			pusher()->print("woa baby\n");
-		},
+		send => "woa baby\n",
 		acquire =>	sub {
+			print "about to get() a line\n" if $debug;
 			puller()->get()
 		},
 		compare => "woa baby",
@@ -54,10 +60,9 @@ our (@tests) = (
 		desc => 'copy one line: print method & get method',
 	},
 	{ #3
-		send =>		sub {
-			pusher()->print("woa frog\n");
-		},
+		send => "woa frog\n",
 		acquire =>	sub {
+			print "about to getline() a line\n" if $debug;
 			puller()->getline()
 		},
 		compare => "woa frog\n",
@@ -412,7 +417,7 @@ my $results = IO::Event::Socket::INET->new(
 	LocalPort => $rp,
 	LocalAddr => $addr,
 	Handler => 'Pull',
-	Description => 'Listener',
+	Description => "Listener, will receive on $addr:$rp",
 );
 
 die unless $results;
@@ -432,19 +437,19 @@ my $ptime;
 my $push_socket;
 my $pull_socket;
 
-Event->idle (
+IO::Event->idle (
 	cb => \&startup,
 	reentrant => 0,
 	repeat => 0,
 );
 
-okay($results, "start listening on results socket");
+okay($results, "now listening on results socket $addr:$rp");
 
 alarm($slowest);
 
 print STDERR "about to loop\n" if $debug;
 
-my $r = Event::loop();
+my $r = IO::Event::loop();
 okay($r == 7, "loop finshed ($r)");
 
 exit(0);
@@ -455,6 +460,7 @@ sub pusher
 	$push_socket = $np if $np;
 	return $push_socket;
 }
+
 sub puller
 {
 	my ($np) = @_;
@@ -505,23 +511,30 @@ sub ie_input
 
 sub startup
 {
+	print "Creating new sending socket, connecting to $addr:$rp\n" if $debug;
 	IO::Event::Socket::INET->new (
 		Proto => 'tcp',
 		PeerPort => $rp,
 		PeerAddr => $addr,
 		Handler => 'Push',
+		Description => "Sending socket",
 	) or T::okay(0, "create pusher to $rp: $@");
 }
 
 sub sender
 {
+	print "sender() invoked\n" if $debug;
+	die "send/receive out of sync $last_send/$last_receive" if $last_send != $last_receive;
 	shift(@tests);
 	if (! @tests) {
 		okay(1, "all done");
 		exit(0);
 	}
 	my $t = $tests[0];
+	print "##############################################################################\n" if $debug;
+	print "# starting $t->{desc}\n";
 	$a = $t->{send};
+	$last_send++;
 	# okay(1, "keys = ".join(' ',keys %$t));
 	if (ref $a) {
 		eval { &$a() };
@@ -534,7 +547,6 @@ sub sender
 		print "# printing '$a' for new test\n" if $debug;
 		pusher->print($a);
 	}
-	print "# starting $t->{desc}\n";
 	pusher->close();
 	alarm($slowest);
 }
@@ -556,9 +568,13 @@ sub ie_input
 
 package Pull;
 
+use strict;
+use warnings;
+
 sub ie_connection
 {
 	my ($self, $s) = @_;
+	print STDERR "Got puller connection  $T::last_receive\n" if $debug;
 	T::puller($s->accept);
 	my $t = $T::tests[0];
 	my $c = $t->{connect};
@@ -567,6 +583,7 @@ sub ie_connection
 
 sub ie_input
 {
+	print STDERR "INPUT  $T::last_receive\n" if $debug;
 #use Carp;
 #print Carp::longmess("DEBUG... ie_input called\n");
 	my ($self, $iput, $ibuf) = @_;
@@ -619,6 +636,7 @@ sub ie_input
 			: ($r eq $compare
 				? 0
 				: 1);
+		print "COMPARE '$r' vs '$compare' = $cr\n" if $debug;
 	}
 	my $dr = $r;
 	$dr =~ s/\n/\\n/g;
@@ -637,12 +655,15 @@ sub ie_input
 	} else {
 		T::okay(0, "test $desc failed: $cr: <$dr> <$dcompare>");
 	}
-	print "# next\n";
+	print "# done\n";
+	print "##############################################################################\n" if $debug;
+	$T::last_receive++;
 	if (@tests > 1) {
 		T::startup;
 	} else {
 		exit 0;
 	}
+	alarm($slowest);
 }
 
 sub ie_eof

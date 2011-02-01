@@ -396,6 +396,7 @@ sub new
 		cb		=> [ $self, 'timeout' ],
 		interval	=> $inactivity,
 		hard		=> 0,
+		desc		=> 'inactivity timer',
 	);
 	return $self;
 }
@@ -430,6 +431,7 @@ sub new
 		cb		=> [ $self, 'timeout' ],
 		interval	=> $heartbeat,
 		hard		=> 0,
+		desc		=> 'heartbeat timer',
 	);
 	return $self;
 }

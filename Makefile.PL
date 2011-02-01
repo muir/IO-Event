@@ -12,7 +12,6 @@ WriteMakefile(
 	     'AUTHOR'	=> 'David Muir Sharnoff <muir@idiom.com>') : ()),
 	'dist'		=> {COMPRESS=>'gzip', SUFFIX=>'gz'},
 	'PREREQ_PM'	=> {
-		'Event' => 0.87,
 		'IO::Handle' => 0,
 		'Time::HiRes' => 0,
 		'Test::Simple' => 0,
@@ -22,6 +21,7 @@ WriteMakefile(
 		'File::Flock' => 0,
 		'Net::Netmask' => 0,
 		'Daemon::Generic' => 0,
+		'List::MoreUtils' => 0,
 	 },
 );
 

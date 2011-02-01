@@ -1,5 +1,127 @@
 
+our $debug = 0;
+our $edebug = 0;
+our $sdebug = 0;
+
+{
 package IO::Event;
+
+our $VERSION = 0.801;
+
+use strict;
+no strict 'refs';
+use warnings;
+use Carp qw(confess);
+
+our $base;
+our @ISA;
+
+sub idle
+{
+	&{$base . "::idle"}(@_);
+}
+
+sub loop
+{
+	&{$base . "::loop"}(@_);
+}
+
+sub unloop
+{
+	&{$base . "::unloop"}(@_);
+}
+
+sub unloop_all
+{
+	&{$base . "::unloop_all"}(@_);
+}
+
+sub timer
+{
+	shift;
+	$base->timer(@_);
+}
+
+sub new
+{
+	IO::Event->import('no_emulate_Event') unless $base;
+	&{$base . "::new"}(@_);
+}
+
+sub import
+{
+	my ($pkg, @stuff) = @_;
+	for my $s (@stuff) {
+		if ($s eq 'emulate_Event') {
+			$base = 'IO::Event::Emulate';
+			require IO::Event::Emulate;
+		} elsif ($s eq 'no_emulate_Event') {
+			require Event;
+			require IO::Event::Event;
+			$base = 'IO::Event::Event';
+		} elsif ($s eq 'AnyEvent') {
+			require AnyEvent;
+			require IO::Event::AnyEvent;
+			$base = 'IO::Event::AnyEvent';
+		} else {
+			die "unknown import: $s";
+		}
+		@ISA = $base;
+	}
+	return 1;
+}
+
+sub AUTOLOAD
+{
+	my $self = shift;
+	our $AUTOLOAD;
+	my $a = $AUTOLOAD;
+	$a =~ s/.*:://;
+	
+	# for whatever reason, UNIVERSAL::can() 
+	# doesn't seem to work on some filehandles
+
+	my $r;
+	my @r;
+	my $fh = ${*$self}{ie_fh};
+	if ($fh) {
+		if (wantarray) {
+			eval { @r = $fh->$a(@_) };
+		} else {
+			eval { $r = $fh->$a(@_) };
+		}
+		if ($@ && $@ =~ /Can't locate object method "(.*?)" via package/) {
+			my $event = ${*$self}{ie_event};
+			if ($1 ne $a) {
+				# nothing to do
+			} elsif ($event && $event->can($a)) {
+				if (wantarray) {
+					eval { @r = $event->$a(@_) };
+				} else {
+					eval { $r = $event->$a(@_) };
+				}
+			} else {
+				confess qq{Can't locate object method "$a" via "@{[ ref($self) ]}", "@{[ ref($fh)||'IO::Handle' ]}", or "@{[ ref($event) ]}"};
+			}
+		}
+	} else {
+		my $event = ${*$self}{ie_event};
+		if ($event && $event->can($a)) {
+			if (wantarray) {
+				eval { @r = $event->$a(@_) };
+			} else {
+				eval { $r = $event->$a(@_) };
+			}
+		} else {
+			confess qq{Can't locate object method "$a" via "@{[ ref($self) ]}" or "@{[ ref($event) ]}"};
+		}
+	}
+	confess $@ if $@;
+	return @r if wantarray;
+	return $r;
+}
+
+}{package IO::Event::Common;
 
 use strict;
 use warnings;
@@ -7,42 +129,27 @@ use Symbol;
 use Carp;
 require IO::Handle;
 use POSIX qw(BUFSIZ EAGAIN EBADF EINVAL ETIMEDOUT);
-use UNIVERSAL qw(isa);
 use Socket;
 use Scalar::Util qw(weaken reftype);
 use Time::HiRes qw(time);
 
-our $VERSION = 0.704;
 our $in_callback = 0;
-
-my $debug = 0;
-my $edebug = 0;
-my $sdebug = 0;
 
 my %fh_table;
 my %rxcache;
 
 my @pending_callbacks;
 
-my $rin = '';
-my $win = '';
-my $ein = '';
-
-my %active;
-my %want_read;
-my %want_write;
-my %want_exception;
-
-my $unloop;
-my $use_event = 1;
-
 sub display_bits
 {
 	print STDERR unpack("b*", $_[0]);
 }
-sub count_bits { 
+
+sub count_bits 
+{ 
 	scalar(grep { $_ } split(//, unpack("b*", $_[0])));
 }
+
 sub display_want
 {
 	my ($name, $vec, %hash) = @_;
@@ -60,52 +167,6 @@ sub display_want
 	print STDERR scalar(keys(%hash));
 	print STDERR "\n";
 	exit 1;
-}
-
-sub loop
-{
-	if ($use_event) {
-		require Event;
-		return Event::loop(@_);
-	} else {
-		return ie_loop(@_);
-	}
-}
-
-sub timer
-{
-	if ($use_event) {
-		require Event;
-		shift;
-		return Event->timer(@_);
-	} else {
-		return ie_timer(@_);
-	}
-}
-
-sub unloop_all
-{
-	if ($use_event) {
-		return Event::unloop_all(@_);
-	} else {
-		$unloop = [1, @_];
-		return;
-	}
-}
-
-sub import
-{
-	my ($pkg, @stuff) = @_;
-	for my $s (@stuff) {
-		if ($s eq 'emulate_Event') {
-			$use_event = 0;
-		} elsif ($s eq 'no_emulate_Event') {
-			$use_event = 1;
-		} else {
-			die "unknown import: $s";
-		}
-	}
-	return 1;
 }
 
 my $counter = 1;
@@ -168,80 +229,6 @@ sub listener
 	return $o;
 }
 
-# a replacement for Event::loop
-sub ie_loop
-{
-	$unloop = 0;
-	die if $use_event;
-	my ($rout, $wout, $eout);
-	for(;;) {
-		print STDERR "LT" if $sdebug;
-		last if $unloop;
-
-		my $timeout = IO::Event::Timer->get_time_to_timer;
-
-#printf STDERR "###%d-%d-%d-%f", scalar(keys(%want_read)), scalar(keys(%want_write)), scalar(keys(%want_exception)), $timeout ? $timeout : 99;
-#die display_want('rin', $rin, %want_read) unless count_bits($rin) == scalar(keys(%want_read));
-#die display_want('win', $win, %want_write) unless count_bits($win) == scalar(keys(%want_write));
-#die display_want('ein', $ein, %want_exception) unless count_bits($ein) == scalar(keys(%want_exception));
-
-		my ($nfound, $timeleft) = select($rout=$rin, $wout=$win, $eout=$ein, $timeout);
-		print STDERR "N$nfound" if $sdebug;
-		if ($nfound) {
-			EVENT:
-			{
-				if ($rout) {
-					for my $ioe (values %want_read) {
-						next unless vec($rout, ${*$ioe}{ie_fileno}, 1);
-						my $ret = $ioe->ie_dispatch_read(${*$ioe}{ie_fh});
-						if ($ret && vec($wout, ${*$ioe}{ie_fileno}, 1)) {
-							vec($wout, ${*$ioe}{ie_fileno}, 1) = 0;
-							$nfound--;
-						}
-						if ($ret && vec($eout, ${*$ioe}{ie_fileno}, 1)) {
-							vec($eout, ${*$ioe}{ie_fileno}, 1) = 0;
-							$nfound--;
-						}
-						$nfound--;
-						last EVENT unless $nfound > 0;
-					}
-				}
-				if ($wout) {
-					for my $ioe (values %want_write) {
-						next unless vec($wout, ${*$ioe}{ie_fileno}, 1);
-						my $ret = $ioe->ie_dispatch_write(${*$ioe}{ie_fh});
-						if ($ret && vec($eout, ${*$ioe}{ie_fileno}, 1)) {
-							vec($eout, ${*$ioe}{ie_fileno}, 1) = 0;
-							$nfound--;
-						}
-						$nfound--;
-						last EVENT unless $nfound > 0;
-					}
-				}
-				if ($eout) {
-					for my $ioe (values %want_exception) {
-						next unless vec($eout, ${*$ioe}{ie_fileno}, 1);
-						$ioe->ie_dispatch_exception(${*$ioe}{ie_fh});
-						$nfound--;
-						last EVENT unless $nfound > 0;
-					}
-				}
-			}
-		}
-		IO::Event::Timer->invoke_timers if $timeout;
-	}
-	die unless ref($unloop);
-	my @r = @$unloop;
-	shift(@r);
-	return $r[0] if @r == 1;
-	return @r;
-}
-
-sub ie_timer
-{
-	IO::Event::Timer::new(@_);
-}
-
 # call out
 sub ie_invoke
 {
@@ -251,19 +238,35 @@ sub ie_invoke
 		# we'll do this later
 		push(@pending_callbacks, [ $self, $required, $method, @args ])
 			unless exists ${*$self}{ie_pending}{$method};
-		${*$self}{ie_pending}{$method} = 1;
-		return 1;
+		${*$self}{ie_pending}{$method} = 1; # prevent double invocation.  needed?
+		print STDERR "Delaying invocation of $method on ${*$self}{ie_desc} because we're already in a callback\n" if $debug;
+		return;
 	}
 
 	local($in_callback) = 1;
 
+	$self->ie_do_invoke($required, $method, @args);
+
+	while (@pending_callbacks) {
+		my ($ie, $req, $meth, @a) = @{shift @pending_callbacks};
+		delete ${*$ie}{ie_pending}{$meth}; 
+		print STDERR "Processing delayed invocation of $meth on ${*$ie}{ie_desc}\n" if $debug;
+		$ie->ie_do_invoke($req, $meth, @a);
+	}
+	return;
+}
+
+sub ie_do_invoke
+{
+	my ($self, $required, $method, @args) = @_;
+
 	print STDERR "invoking ${*$self}{ie_fileno} ${*$self}{ie_handler}->$method\n"
 		if $debug;
 
-	return 0 if ! $required && ! ${*$self}{ie_handler}->can($method);
+	return if ! $required && ! ${*$self}{ie_handler}->can($method);
 	if ($debug) {
 		my ($pkg, $line, $func) = caller();
-		print "DISPATCHING $method from $func at line $line\n";
+		print "DISPATCHING $method on ${*$self}{ie_desc} from $func at line $line\n";
 	}
 	eval {
 		${*$self}{ie_handler}->$method($self, @args);
@@ -271,14 +274,14 @@ sub ie_invoke
 
 	print STDERR "return from ${*$self}{ie_fileno} ${*$self}{ie_handler}->$method handler: $@\n" if $debug;
 
-	return 1 unless $@;
+	return unless $@;
 	if (${*$self}{ie_handler}->can('ie_died')) {
 		${*$self}{ie_handler}->ie_died($self, $method, $@);
 	} else {
 		confess $@;
 		exit 1;
 	}
-	return 0;
+
 }
 
 #
@@ -306,16 +309,8 @@ sub ie_dispatch
 			$self->ie_dispatch_timer();
 		}
 	}
-	while (@pending_callbacks) {
-		my ($ie, $req, $meth, @args) = @{shift @pending_callbacks};
-		delete ${*$self}{ie_pending}{$meth};
-		if (defined &$meth) {
-			$ie->$meth();
-		} else {
-			$ie->ie_invoke($req, $meth, @args);
-		}
-	}
 }
+
 
 sub ie_dispatch_read
 {
@@ -433,7 +428,7 @@ sub ie_dispatch_timer
 	{
 		delete ${*$self}{ie_connect_timeout};
 		$self->ie_invoke(0, 'ie_connect_failed', ETIMEDOUT)
-			|| $self->ie_invoke(0, 'ie_timer');
+			or $self->ie_invoke(0, 'ie_timer');
 	} else {
 		$self->ie_invoke(0, 'ie_timer');
 	}
@@ -453,6 +448,9 @@ sub ie_input
 	for (;;) {
 		my $ol = length($$ibuf);
 		my $rv = ${*$self}{ie_fh}->sysread($$ibuf, BUFSIZ, $ol);
+
+#		my $x = defined($rv) ? $rv : "$!";			# LOST EVENTS
+#		print STDERR "<INPUT ${*$self}{ie_desc}=$x>";		# LOST EVENTS
 
 		if ($rv) {
 			delete ${*$self}{ie_readclosed};
@@ -486,8 +484,7 @@ sub ie_input
 			$self->ie_invoke(0, 'ie_eof', $ibuf)
 				unless ${*$self}{ie_eofinvoked}++;
 		}
-		$self->readevents(0)
-			if ${*$self}{ie_event} || $active{${*$self}{ie_fileno}};
+		$self->readevents(0);
 	}
 }
 
@@ -539,33 +536,11 @@ sub writeevents
 {
 	my $self = shift;
 	my $old = ${*$self}{ie_want_write_events};
-	return $old unless @_;
+	return !! $old unless @_;
 	my $new = !! shift;
-	return $old if $old eq $new;
+	return $old if defined($old) && $old eq $new;
 	${*$self}{ie_want_write_events} = $new;
-	if ($use_event) {
-		my $event = ${*$self}{ie_event};
-		if ($new) {
-			$event->poll($event->poll | Event::Watcher::W());
-		} else {
-			$event->poll($event->poll & ~Event::Watcher::W());
-		}
-	} else {
-		my $fileno = ${*$self}{ie_fileno};
-		if ($new) {
-			vec($win, $fileno, 1) = 1;
-			$want_write{$fileno} = $want_exception{$fileno} = $self;
-		} else {
-			vec($win, $fileno, 1) = 0;
-			delete $want_write{$fileno};
-			delete $want_exception{$fileno}
-				unless $want_read{$fileno};
-		}
-		$ein = $rin | $win;
-#die display_want('rin', $rin, %want_read) unless count_bits($rin) == scalar(keys(%want_read));
-#die display_want('win', $win, %want_write) unless count_bits($win) == scalar(keys(%want_write));
-#die display_want('ein', $ein, %want_exception) unless count_bits($ein) == scalar(keys(%want_exception));
-	}
+	$self->set_write_polling($new);
 	return $old;
 }
 
@@ -573,33 +548,12 @@ sub readevents
 {
 	my $self = shift;
 	my $old = ${*$self}{ie_want_read_events};
-	return $old unless @_;
+	return !! $old unless @_;
 	my $new = !! shift;
-	return $old if $old eq $new;
+#	print STDERR "<READEVENTS ${*$self}{ie_desc} = $new>"; 		# LOST EVENTS
+	return $old if defined($old) && $old eq $new;
 	${*$self}{ie_want_read_events} = $new;
-	if ($use_event) {
-		my $event = ${*$self}{ie_event};
-		if ($new) {
-			$event->poll($event->poll | Event::Watcher::R());
-		} else {
-			$event->poll($event->poll & ~Event::Watcher::R());
-		}
-	} else {
-		my $fileno = ${*$self}{ie_fileno};
-		if ($new) {
-			vec($rin, $fileno, 1) = 1;
-			$want_read{$fileno} = $want_exception{$fileno} = $self;
-		} else {
-			vec($rin, $fileno, 1) = 0;
-			delete $want_read{$fileno};
-			delete $want_exception{$fileno}
-				unless $want_write{$fileno}
-		}
-		$ein = $rin | $win;
-#die display_want('rin', $rin, %want_read) unless count_bits($rin) == scalar(keys(%want_read));
-#die display_want('win', $win, %want_write) unless count_bits($win) == scalar(keys(%want_write));
-#die display_want('ein', $ein, %want_exception) unless count_bits($ein) == scalar(keys(%want_exception));
-	}
+	$self->set_read_polling($new);
 	return $old;
 }
 
@@ -618,34 +572,7 @@ sub ie_register
 	$fh->autoflush(1);
 
 	my $fileno = ${*$self}{ie_fileno} = $fh->fileno;
-	if ($use_event) {
-		require Event;
-		require Event::Watcher;
-		my $R = ${*$self}{ie_readclosed}
-			? 0
-			: Event::Watcher::R();
-		${*$self}{ie_want_read_events} = ! ${*$self}{ie_readclosed};
-		${*$self}{ie_want_write_events} = '';
-		${*$self}{ie_event} = Event->io(
-			fd	=> $fileno,
-			poll	=> Event::Watcher::E()|Event::Watcher::T()|$R,
-			cb	=> [ $self, 'ie_dispatch' ],
-			desc	=> ${*$self}{ie_desc},
-			edebug	=> $edebug,
-		);
-		print STDERR "registered ${*$self}{ie_fileno}:${*$self}{ie_desc} $self $fh ${*$self}{ie_event}\n"
-			if $debug;
-	} else {
-#printf "FILENO %d\n", fileno($fh);
-#count_bits(${*$self}{ie_vec});
-		$active{$fileno} = $self;
-		${*$self}{ie_want_read_events} = '';
-		${*$self}{ie_want_write_events} = '';
-		$self->readevents(${*$self}{ie_readclosed}); 
-		$self->readevents(! ${*$self}{ie_readclosed}); 
-		$self->writeevents(1);
-		$self->writeevents(0);
-	}
+	return ($fh, $fileno);
 }
 
 # deregister with Event
@@ -656,13 +583,6 @@ sub ie_deregister
 	delete $fh_table{$fh};
 	$self->readevents(0);
 	$self->writeevents(0);
-	if ($use_event) {
-		${*$self}{ie_event}->cancel
-			if ${*$self}{ie_event};
-		delete ${*$self}{ie_event};
-	} else {
-		delete $active{${*$self}{ie_fileno}};
-	}
 }
 
 # the standard max() function
@@ -859,9 +779,9 @@ sub open
 { 
 	my $self = shift;
 	my $fh = ${*$self}{ie_fh};
+	$self->ie_deregister();
 	$self->close()
 		if $fh->opened;
-	$self->ie_deregister();
 	$self->reset;
 	my $r;
 	if (@_ == 1) {
@@ -1197,61 +1117,13 @@ sub DESTROY
 {
 	my $self = shift;
 	my $no = $self->fileno;
+	$no = '?' unless defined $no;
 	print "DESTROY $no...\n" if $debug;
 	return undef unless $self && ref($self) && reftype($self) eq 'GLOB';
 	${*$self}{ie_event}->cancel
 		if ${*$self}{ie_event};
 }
 
-sub AUTOLOAD
-{
-	my $self = shift;
-	our $AUTOLOAD;
-	my $a = $AUTOLOAD;
-	$a =~ s/.*:://;
-	
-	# for whatever reason, UNIVERSAL::can() 
-	# doesn't seem to work on some filehandles
-
-	my $r;
-	my @r;
-	my $fh = ${*$self}{ie_fh};
-	if ($fh) {
-		if (wantarray) {
-			eval { @r = $fh->$a(@_) };
-		} else {
-			eval { $r = $fh->$a(@_) };
-		}
-		if ($@ && $@ =~ /Can't locate object method "(.*?)" via package/) {
-			my $event = ${*$self}{ie_event};
-			if ($1 ne $a) {
-				# nothing to do
-			} elsif ($event && $event->can($a)) {
-				if (wantarray) {
-					eval { @r = $event->$a(@_) };
-				} else {
-					eval { $r = $event->$a(@_) };
-				}
-			} else {
-				confess qq{Can't locate object method "$a" via "@{[ ref($self) ]}", "@{[ ref($fh)||'IO::Handle' ]}", or "@{[ ref($event) ]}"};
-			}
-		}
-	} else {
-		my $event = ${*$self}{ie_event};
-		if ($event && $event->can($a)) {
-			if (wantarray) {
-				eval { @r = $event->$a(@_) };
-			} else {
-				eval { $r = $event->$a(@_) };
-			}
-		} else {
-			confess qq{Can't locate object method "$a" via "@{[ ref($self) ]}" or "@{[ ref($event) ]}"};
-		}
-	}
-	confess $@ if $@;
-	return @r if wantarray;
-	return $r;
-}
 
 sub TIEHANDLE
 {
@@ -1300,12 +1172,13 @@ no warnings;
 
 use warnings;
 
-package IO::Event::Socket::INET;
+}{package IO::Event::Socket::INET;
 
 # XXX version 1.26 required for IO::Socket::INET
 
 use strict;
 use warnings;
+use List::MoreUtils qw(any);
 
 our @ISA = qw(IO::Event);
 
@@ -1339,7 +1212,8 @@ sub new
 	my $fh = new IO::Socket::INET(%sock);
 	return undef unless defined $fh;
 
-	if (grep(/Peer/, keys %sock)) {
+	my $peer = any { /Peer/ } keys %sock;
+	if ($peer) {
 		$ds{LocalPort} = $fh->sockport
 			unless defined $ds{LocalPort};
 		$ds{LocalHost} = $fh->sockhost
@@ -1359,8 +1233,8 @@ sub new
 	bless $self, $pkg;
 	$self->listener(1)
 		if $sock{Listen};
-	$fh->blocking(0); # may be redundant
-	if (grep(/Peer/, keys %sock)) {
+	$fh->blocking(0); # XXX may be redundant
+	if ($peer) {
 		if ($fh->connected()) {
 			$self->ie_invoke(0, 'ie_connected');
 		} else {
@@ -1376,12 +1250,13 @@ sub new
 	return $self;
 }
 
+}{
 package IO::Event::Socket::UNIX;
 
 use strict;
 use warnings;
 
-@ISA = qw(IO::Event);
+our @ISA = qw(IO::Event);
 
 sub new
 {
@@ -1422,190 +1297,6 @@ sub new
 	return $self;
 }
 
-package IO::Event::Timer;
-
-use warnings;
-use strict;
-use Time::HiRes qw(time);
-use Carp qw(confess);
-use Scalar::Util qw(reftype);
-
-our @ISA = qw(IO::Event);
-our %timers = ();
-our %levels = ();
-our %next = ();
-
-BEGIN {
-	for $a (qw(at after interval hard cb desc prio repeat timeout)) {
-		my $attrib = $a;
-		no strict 'refs';
-		*{"IO::Event::Timer::$a"} = sub {
-			my $self = shift;
-			return $self->{$attrib} unless @_;
-			my $val = shift;
-			$self->{$attrib} = $val;
-			return $val;
-		};
-	}
-}
-
-my $tcount = 1;
-
-my @timers;
-
-sub get_time_to_timer
-{
-	@timers = sort { $a <=> $b } keys %next;
-	my $t = time;
-	if (@timers) {
-		if ($timers[0] > $t) {
-			my $timeout = $timers[0] - $t;
-			$timeout = 0.01 if $timeout < 0.01;
-			return $timeout;
-		} else {
-			return 0.01;
-		}
-	}
-	return undef;
-}
-
-sub invoke_timers
-{
-	while (@timers && $timers[0] < time) {
-		print STDERR "Ti" if $sdebug;
-		my $t = shift(@timers);
-		my $te = delete $next{$t};
-		for my $tnum (keys %$te) {
-			my $timer = $te->{$tnum};
-			next unless $timer->{next};
-			next unless $timer->{next} eq $t;
-			$timer->now();
-		}
-	}
-}
-
-sub new
-{
-	my ($pkg, %param) = @_;
-	confess unless $param{cb};
-	die if $param{after} && $param{at};
-	my $timer = bless {
-		tcount		=> $tcount,
-		last_time	=> time,
-		%param
-	}, __PACKAGE__;
-	$timers{$tcount++} = $timer;
-	$timer->schedule;
-	return $timer;
-}
-
-sub schedule
-{
-	my ($self) = @_;
-	my $next;
-	if ($self->{invoked}) {
-		if ($self->{interval}) {
-			$next = $self->{last_time} + $self->{interval};
-			if ($self->{hard} && $self->{next}) {
-				$next = $self->{next} + $self->{interval};
-			}
-		} else {
-			$next = undef;
-		}
-	} elsif ($self->{at}) {
-		$next = $self->{at};
-	} elsif ($self->{after}) {
-		$next = $self->{after} + time;
-	} elsif ($self->{interval}) {
-		$next = $self->{interval} + time;
-	} else {
-		die;
-	}
-	if ($next) {
-		$next{$next}{$self->{tcount}} = $self;
-		$self->{next} = $next;
-	} else {
-		$self->{next} = 0;
-		$self->stop();
-	}
-}
-
-sub start
-{
-	my ($self) = @_;
-	$timers{$self->{tcount}} = $self;
-	delete $self->{stopped};
-	$self->schedule;
-}
-
-sub again
-{
-	my ($self) = @_;
-	$self->{last_time} = time;
-	$self->start;
-}
-
-sub now
-{
-	my ($self) = @_;
-	$self->{last_time} = time;
-	local($levels{$self->{tcount}}) = ($levels{$self->{tcount}} || 0)+1;
-	$self->{invoked}++;
-	if (reftype($self->{cb}) eq 'CODE') {
-		$self->{cb}->($self);
-	} elsif (reftype($self->{cb}) eq 'ARRAY') {
-		my ($o, $m) = @{$self->{cb}};
-		$o->$m($self);
-	} else {
-		die;
-	}
-	$self->schedule;
-}
-
-
-sub stop
-{
-	my ($self) = @_;
-	delete $timers{$self->{tcount}};
-	$self->{stopped} = time;
-}
-
-sub cancel
-{
-	my ($self) = @_;
-	$self->{cancelled} = time;
-	delete $timers{$self->{tcount}};
-}
-
-sub is_cancelled
-{
-	my ($self) = @_;
-	return $self->{cancelled};
-}
-
-sub is_active
-{
-	my ($self) = @_;
-	return exists $timers{$self->{tcount}};
-}
-
-sub is_running
-{
-	my ($self) = @_;
-	return $levels{$self->{tcount}};
-}
-
-sub is_suspended
-{
-	my ($self) = @_;
-	return 0;
-}
-
-sub pending
-{
-	return () if wantarray;
-	return undef;
-}
-
+}#end package
 1;
 
