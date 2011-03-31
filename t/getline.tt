@@ -14,10 +14,6 @@ use Sys::Hostname;
 
 my $startingport = 1025;
 
-my $hostname = hostname;
-my $addr = join('.',unpack('C4',gethostbyname($hostname)));
-print STDERR "host = $hostname addr = $addr.\n" if $debug;
-
 my $tnum;
 
 package T;
@@ -415,9 +411,9 @@ my $results = IO::Event::Socket::INET->new(
 	Listen => 10,
 	Proto => 'tcp',
 	LocalPort => $rp,
-	LocalAddr => $addr,
+	LocalAddr => '127.0.0.1',
 	Handler => 'Pull',
-	Description => "Listener, will receive on $addr:$rp",
+	Description => "Listener, will receive on 127.0.0.1:$rp",
 );
 
 die unless $results;
@@ -443,7 +439,7 @@ IO::Event->idle (
 	repeat => 0,
 );
 
-okay($results, "now listening on results socket $addr:$rp");
+okay($results, "now listening on results socket 127.0.0.1:$rp");
 
 alarm($slowest);
 
@@ -511,11 +507,11 @@ sub ie_input
 
 sub startup
 {
-	print "Creating new sending socket, connecting to $addr:$rp\n" if $debug;
+	print "Creating new sending socket, connecting to 127.0.0.1:$rp\n" if $debug;
 	IO::Event::Socket::INET->new (
 		Proto => 'tcp',
 		PeerPort => $rp,
-		PeerAddr => $addr,
+		PeerAddr => '127.0.0.1',
 		Handler => 'Push',
 		Description => "Sending socket",
 	) or T::okay(0, "create pusher to $rp: $@");

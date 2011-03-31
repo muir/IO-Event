@@ -1,4 +1,22 @@
 
+= 2011/02/28	0.804
+
+Adjust tests to use 127.0.0.1 instead of Sys::Hostname::hostname 
+
+= 2011/02/27	0.803
+
+Adjust prerequisites and tests.  Require Event & AnyEvent, run tests w/o them anyway.
+
+= 2011/02/26	0.802
+
+Add missing files to the MANIFEST
+Forgot to update README
+
+= 2011/02/25	0.801
+
+Add framework to support multiple backend event loops.
+Add AnyEvent as a new supported event loop.
+
 = 2009/07/23	0.704
 
 Added new API: IO::Event::Callback that provides a 

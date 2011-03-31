@@ -6,7 +6,7 @@ our $sdebug = 0;
 {
 package IO::Event;
 
-our $VERSION = 0.803;
+our $VERSION = 0.804;
 
 use strict;
 no strict 'refs';

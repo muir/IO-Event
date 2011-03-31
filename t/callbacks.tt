@@ -15,10 +15,6 @@ use Sys::Hostname;
 
 my $startingport = 1025;
 
-my $hostname = hostname;
-my $addr = join('.',unpack('C4',gethostbyname($hostname)));
-print STDERR "host = $hostname addr = $addr.\n" if $debug;
-
 package T;
 
 use IO::Event;
@@ -84,7 +80,7 @@ my $results = IO::Event::Socket::INET->new(
 	Listen => 10,
 	Proto => 'tcp',
 	LocalPort => $rp,
-	LocalAddr => $addr,
+	LocalAddr => '127.0.0.1',
 	Handler => 'ListenPrintOkay',
 	Description => 'Listener',
 );
@@ -105,7 +101,7 @@ my (@tests) = (
 			IO::Event::Socket::INET->new (
 				Proto => 'tcp',
 				PeerPort => $rp,
-				PeerAddr => $addr,
+				PeerAddr => '127.0.0.1',
 				Handler => 'SendOne',
 			) or T::okay(0, "create Sendone to $rp: $@");
 		},
@@ -115,14 +111,14 @@ my (@tests) = (
 				Listen => 1,
 				Proto => 'tcp',
 				LocalPort => $rp,
-				LocalAddr => $addr,
+				LocalAddr => '127.0.0.1',
 				Handler => 'ListenGetLine',
 				Description => 'Listener2',
 			) or T::okay(0, "create listener2 at $rp: $@");
 			IO::Event::Socket::INET->new (
 				Proto => 'tcp',
 				PeerPort => $rp,
-				PeerAddr => $addr,
+				PeerAddr => '127.0.0.1',
 				Handler => 'SendOne',
 			) or T::okay(0, "create SendOne2 to $rp: $@");
 		},

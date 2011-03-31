@@ -196,10 +196,6 @@ BEGIN {
 
 my $startingport = 1025;
 
-my $hostname = hostname;
-my $addr = join('.',unpack('C4',gethostbyname($hostname)));
-print STDERR "# host = $hostname, addr = $addr.\n" if $debug;
-
 my $rp = pickport();
 my $child;
 my $timer;
@@ -212,12 +208,12 @@ $SIG{PIPE} = sub {
 my $pipe = new IO::Pipe;
 
 if ($child = fork()) {
-	print "# PARENT $$ will listen at $addr:$rp\n" if $debug;
+	print "# PARENT $$ will listen at 127.0.0.1:$rp\n" if $debug;
 	my $listener = IO::Event::Socket::INET->new(
 		Listen => 10,
 		Proto => 'tcp',
 		LocalPort => $rp,
-		LocalAddr => $addr,
+		LocalAddr => '127.0.0.1',
 		Handler => new Server,
 		Description => 'Listener',
 	);
@@ -238,7 +234,7 @@ if ($child = fork()) {
 	IO::Event::loop();
 	print "# PARENT done looping\n";
 } elsif (defined($child)) {
-	print "# CHILD $$ will connect to $addr:$rp\n" if $debug;
+	print "# CHILD $$ will connect to 127.0.0.1:$rp\n" if $debug;
 	$pipe->reader();
 	syncto("l");
 	while (@tests) {
@@ -247,7 +243,7 @@ if ($child = fork()) {
 			if --$test->{repeat} < 1;
 		print "# test $test->{desc}\n";
 		my $s = IO::Socket::INET->new(
-			PeerAddr => $addr,
+			PeerAddr => '127.0.0.1',
 			PeerPort => $rp,
 			Proto => 'tcp',
 		);
