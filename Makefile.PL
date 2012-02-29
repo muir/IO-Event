@@ -26,6 +26,7 @@ WriteMakefile(
 	'BUILD_REQUIRES' => {
 		'Event' => 0,
 		'AnyEvent' => 0,
+		'diagnostics' => 0,
 	}
 );
 

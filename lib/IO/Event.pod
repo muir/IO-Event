@@ -9,19 +9,18 @@ IO::Event - Tied Filehandles for Nonblocking IO with Object Callbacks
  use IO::Event 'emulate_Event';
  use IO::Event 'AnyEvent';
 
-
  my $ioe = IO::Event->new($filehandle);
 
  my $ioe = IO::Event::Socket::INET->new( [ARGS] )
 
  my $ioe = IO::Event::Socket::UNIX->new( [ARGS] )
 
- my $timer = IO::Event::timer(
+ my $timer = IO::Event->timer(
 	[after => $seconds],
 	interval => $seconds,
 	cb => CODE);
 
- my $idler = IO::Event::idle(
+ my $idler = IO::Event->idle(
 	[min => $seconds], 
 	[max => $seconds],
 	[reentrant => 0],
@@ -42,8 +41,12 @@ All APIs are kept as simple as possible yet at the same time,
 all functionality is accesible if needed.  Simple things are
 easy.  Hard things are possible.
 
-Most of the time file handling syntax will work fine: C<< <$filehandle> >>
-and C<print $filehandle 'stuff'>.
+Most of the time file handling syntax will work fine:
+C<< <$filehandle> >> and C<print $filehandle 'stuff'>.
+
+IO::Event provides automatic buffering of output (with a 
+callback to throttle).  It provides automatic line-at-a-time
+input.
 
 After initial setup, call C<IO::Event::loop()>.  
 
@@ -62,8 +65,8 @@ import C<no_emulate_Event>, C<emulate_Event>, or C<AnyEvent>.
  use IO::Event 'emulate_Event'
  use IO::Event 'AnyEvent'
 
-The C<no_emulate_Event> means: use L<Event>.  The C<emulate_Event>
-mean IO::Event should use its own event loop.
+The C<no_emulate_Event> option means: use L<Event>.  The C<emulate_Event>
+option means IO::Event should use its own event loop.
 
 Why?
 
@@ -99,7 +102,7 @@ To use L<AnyEvent>'s select loop, import C<AnyEvent>.
 You can use L<AnyEvent>'s API directly or you can use IO::Event's 
 emulated APIs: C<IO::Event::loop()>, C<IO::Event::unloop()>, C<IO::Event::timer()>,
 and C<IO::Event::idle()>.  These behave like L<Event>'s routines of the
-same name but use L<AnyEvent> underneith.
+same name but use L<AnyEvent> underneath.
 
 During testing, using the pure-perl event loop of L<AnyEvent::Impl::Perl> from
 L<AnyEvent> version 5.271, some read events were dropped.  To work around this, a synthetic 
@@ -113,7 +116,7 @@ them "every now and then".
 
 =head2 C<emulate_Event>
 
-To use IO::Event's select loop, import C<emulate_Event>.
+To use IO::Event's own select loop, import C<emulate_Event>.
 
  use IO::Event 'emulate_Event';
 
@@ -636,8 +639,6 @@ by its author and seems solid.
 =head1 LICENSE
 
 Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>.
-
 Copyright (C) 2011 Google, Inc.
-
 This module may be used/copied/etc on the same terms as Perl itself.
 

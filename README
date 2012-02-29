@@ -6,19 +6,18 @@ SYNOPSIS
      use IO::Event 'emulate_Event';
      use IO::Event 'AnyEvent';
 
-
      my $ioe = IO::Event->new($filehandle);
 
      my $ioe = IO::Event::Socket::INET->new( [ARGS] )
 
      my $ioe = IO::Event::Socket::UNIX->new( [ARGS] )
 
-     my $timer = IO::Event::timer(
+     my $timer = IO::Event->timer(
             [after => $seconds],
             interval => $seconds,
             cb => CODE);
 
-     my $idler = IO::Event::idle(
+     my $idler = IO::Event->idle(
             [min => $seconds], 
             [max => $seconds],
             [reentrant => 0],
@@ -40,6 +39,9 @@ DESCRIPTION
     Most of the time file handling syntax will work fine: "<$filehandle>"
     and "print $filehandle 'stuff'".
 
+    IO::Event provides automatic buffering of output (with a callback to
+    throttle). It provides automatic line-at-a-time input.
+
     After initial setup, call "IO::Event::loop()".
 
     IO::Event was originally written to use Event. IO::Event still defaults
@@ -55,8 +57,8 @@ CHOOSING AN EVENT HANDLER
      use IO::Event 'emulate_Event'
      use IO::Event 'AnyEvent'
 
-    The "no_emulate_Event" means: use Event. The "emulate_Event" mean
-    IO::Event should use its own event loop.
+    The "no_emulate_Event" option means: use Event. The "emulate_Event"
+    option means IO::Event should use its own event loop.
 
     Why?
 
@@ -89,7 +91,7 @@ CHOOSING AN EVENT HANDLER
     You can use AnyEvent's API directly or you can use IO::Event's emulated
     APIs: "IO::Event::loop()", "IO::Event::unloop()", "IO::Event::timer()",
     and "IO::Event::idle()". These behave like Event's routines of the same
-    name but use AnyEvent underneith.
+    name but use AnyEvent underneath.
 
     During testing, using the pure-perl event loop of AnyEvent::Impl::Perl
     from AnyEvent version 5.271, some read events were dropped. To work
@@ -103,7 +105,7 @@ CHOOSING AN EVENT HANDLER
     invoke them "every now and then".
 
   "emulate_Event"
-    To use IO::Event's select loop, import "emulate_Event".
+    To use IO::Event's own select loop, import "emulate_Event".
 
      use IO::Event 'emulate_Event';
 
@@ -510,9 +512,7 @@ BUGS
     author and seems solid.
 
 LICENSE
-    Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>.
-
-    Copyright (C) 2011 Google, Inc.
-
-    This module may be used/copied/etc on the same terms as Perl itself.
+    Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>. Copyright
+    (C) 2011 Google, Inc. This module may be used/copied/etc on the same
+    terms as Perl itself.
 

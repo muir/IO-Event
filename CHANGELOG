@@ -1,4 +1,12 @@
 
+Add 'diagnostics' to build requirements.
+
+Documentation updates.
+
+= 2011/06/17	0.805
+
+Docfix.  It's IO::Event->timer() not IO::Event::timer.
+
 = 2011/02/28	0.804
 
 Adjust tests to use 127.0.0.1 instead of Sys::Hostname::hostname 
