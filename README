@@ -479,6 +479,10 @@ SYSREAD and EOF
     come to light and IO::Event uses syswrite and never any other form of
     write/print etc.
 
+DESTRUCTION
+    IO::Event keeps copies of all of its registered filehandles. If you want
+    to close a filehandle, you'll need to actually call close on it.
+
 DATA STRUCTURE
     The filehandle object itself is a funny kind of hash reference. If you
     want to use it to store your own data, you can. Please don't use hash

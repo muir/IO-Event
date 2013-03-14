@@ -1,3 +1,8 @@
+= 2013/03/14	0.807
+
+Bugfix: IO::Event constructor calls that did not include an
+explicit handler were not getting the correct handler.
+
 = 2012/02/28	0.806
 
 Add 'diagnostics' to build requirements.

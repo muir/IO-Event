@@ -590,6 +590,12 @@ On the other hand, at the current time no problems with syswrite
 have come to light and IO::Event uses syswrite and never any other
 form of write/print etc.
 
+=head1 DESTRUCTION
+
+IO::Event keeps copies of all of its registered filehandles.  If
+you want to close a filehandle, you'll need to actually call close
+on it.
+
 =head1 DATA STRUCTURE
 
 The filehandle object itself is a funny kind of hash reference.

@@ -8,7 +8,7 @@ my $debug = 0;
 
 my $c = 1;
 $| = 1;
-my $testcount = 5;
+my $testcount = 6;
 
 use Carp qw(verbose);
 use Sys::Hostname;
@@ -46,7 +46,7 @@ sub pickport
 	die "could not find an open port";
 }
 
-# support routine
+# print "ok N" or "not ok N"
 sub okay
 {
         my ($cond, $message) = @_;
@@ -96,7 +96,19 @@ my $time = time;
 my $waitingfor = $c;
 my $ptime;
 
+# first number is number of test events for this test
 my (@tests) = (
+	1 =>	sub {
+			my $s = IO::Socket::INET->new(
+				Proto => 'tcp',
+				PeerPort => $rp,
+				PeerAddr => '127.0.0.1',
+			);
+			$s or T::okay(0, "Create socket to 127.0.0.1:$rp: $!");
+			my $ioe = SendOne::registerIOE($s);
+			$ioe or T::okay(0, "resiter IOE");
+			$ioe->print("$c\n");
+		},
 	1 =>	sub {
 			IO::Event::Socket::INET->new (
 				Proto => 'tcp',
@@ -128,8 +140,7 @@ my $timer = IO::Event->timer (
 	cb => \&runstuff,
 	reentrant => 0,
 	repeat => 1,
-	interval => 1,
-#	interval => 0.05,
+	interval => 0.05,
 );
 
 okay($results, "start listening on results socket");
@@ -180,7 +191,15 @@ sub runstuff
 		if $@;
 }
 
+# Once we're connected, send the current test number to the server.
+# print the reply.
 package SendOne;
+
+sub registerIOE
+{
+	my ($s) = @_;
+	IO::Event->new($s);
+}
 
 sub ie_connected
 {
@@ -194,12 +213,16 @@ sub ie_input
 	print $s->getlines();
 }
 
+# Listen for connections.  When One is received, and input is received
+# on it, wait for input.  The input should be the current test number.
+# Use "get()"
+#
 package ListenPrintOkay;
 
 sub ie_connection
 {
 	my ($self, $s) = @_;
-	$s->accept('ReceivePrintOkay');
+	my $x = $s->accept('ReceivePrintOkay');
 }
 
 package ReceivePrintOkay;
@@ -209,10 +232,15 @@ sub ie_input
 	my ($self, $s) = @_;
 	my $l;
 	while (defined ($l = $s->get)) {
-		T::okay($l eq $c, "input '$l' != '$c' on results socket");
+		T::okay($l eq $c, "input '$l' == '$c' on results socket");
 	}
 }
 
+#
+# Listen for connections.  When One is received, and input is received
+# on it, wait for input.  The input should be the current test number.
+# Use "getline()"
+#
 package ListenGetLine;
 
 sub ie_connection
@@ -228,7 +256,7 @@ sub ie_input
 	my ($self, $s) = @_;
 	my $l;
 	while (defined ($l = $s->getline)) {
-		T::okay($l eq "$c\n", "input '$l' != '$c' on results socket");
+		T::okay($l eq "$c\n", "input '$l' == '$c' on results socket");
 	}
 }
 

@@ -6,7 +6,7 @@ our $sdebug = 0;
 {
 package IO::Event;
 
-our $VERSION = 0.806;
+our $VERSION = 0.807;
 
 use strict;
 no strict 'refs';
@@ -178,7 +178,7 @@ sub new
 	# stolen from IO::Handle
 	my $self = bless gensym(), $pkg;
 
-	$handler = (caller)[0]
+	$handler = (caller(2))[0]
 		unless $handler;
 
 	confess unless ref $fh;
