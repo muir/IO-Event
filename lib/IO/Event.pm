@@ -1143,6 +1143,12 @@ sub READLINE
 	wantarray ? $self->getlines : $self->getline;
 }
 
+sub ie_desc
+{
+	my $self = shift;
+	return ${*$self}{ie_desc} || "no description";
+}
+
 no warnings;
 
 *PRINT = \&print;

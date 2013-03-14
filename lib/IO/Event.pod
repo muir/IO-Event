@@ -473,6 +473,12 @@ Close close immediately, even if there is output buffered.
 
 =back
 
+=item ->ie_desc
+
+Returns the text description of the filehandle.  For debugging.
+
+=back
+
 =head1 TIMER API
 
 The following timer construction arguments are supported by IO::Event's

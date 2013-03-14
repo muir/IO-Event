@@ -1,3 +1,6 @@
+
+Added ->ie_desc()
+
 = 2013/03/14	0.807
 
 Bugfix: IO::Event constructor calls that did not include an
