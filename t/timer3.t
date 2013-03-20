@@ -9,5 +9,5 @@ if ($@) {
 use FindBin;
 use IO::Event;
 import IO::Event 'AnyEvent';
-require "$FindBin::Bin/forked.tt";
+require "$FindBin::Bin/timer.tt";
 

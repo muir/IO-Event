@@ -473,9 +473,9 @@ Close close immediately, even if there is output buffered.
 
 =back
 
-=item ->ie_desc
+=item ->ie_desc([new description])
 
-Returns the text description of the filehandle.  For debugging.
+Returns (and sets) the text description of the filehandle.  For debugging.
 
 =back
 

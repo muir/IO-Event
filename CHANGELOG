@@ -1,4 +1,12 @@
 
+No longer required to start with IO::Event->new()
+
+fixed forked3.t, getline3.t, and multifork3.t tests
+
+Added timer tests.
+
+Now specifies "hard" on Event.pm timers
+
 Added ->ie_desc()
 
 = 2013/03/14	0.807

@@ -18,11 +18,13 @@ our @ISA;
 
 sub idle
 {
+	IO::Event->import('no_emulate_Event') unless $base;
 	&{$base . "::idle"}(@_);
 }
 
 sub loop
 {
+	IO::Event->import('no_emulate_Event') unless $base;
 	&{$base . "::loop"}(@_);
 }
 
@@ -39,6 +41,7 @@ sub unloop_all
 sub timer
 {
 	shift;
+	IO::Event->import('no_emulate_Event') unless $base;
 	$base->timer(@_);
 }
 
@@ -1145,8 +1148,10 @@ sub READLINE
 
 sub ie_desc
 {
-	my $self = shift;
-	return ${*$self}{ie_desc} || "no description";
+	my ($self, $new) = @_;
+	my $r = ${*$self}{ie_desc} || "no description";
+	${*$self}{ie_desc} = $new if defined $new;
+	return $r;
 }
 
 no warnings;

@@ -45,7 +45,7 @@ sub timer
 {
 	require Event;
 	shift;
-	Event->timer(@_);
+	Event->timer(hard => 1, @_);
 }
 
 sub idle

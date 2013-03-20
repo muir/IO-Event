@@ -8,5 +8,5 @@ if ($@) {
 use FindBin;
 use IO::Event;
 import IO::Event 'AnyEvent';
-require "$FindBin::Bin/callbacks.tt";
+require "$FindBin::Bin/getline.tt";
 

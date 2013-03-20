@@ -386,6 +386,10 @@ METHODS
     ->forceclose
         Close close immediately, even if there is output buffered.
 
+    ->ie_desc([new description])
+        Returns (and sets) the text description of the filehandle. For
+        debugging.
+
 TIMER API
     The following timer construction arguments are supported by IO::Event's
     emulated event loop and IO::Event's API on top of AnyEvent:
@@ -519,4 +523,11 @@ LICENSE
     Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>. Copyright
     (C) 2011 Google, Inc. This module may be used/copied/etc on the same
     terms as Perl itself.
+
+POD ERRORS
+    Hey! The above document had some coding errors, which are explained
+    below:
+
+    Around line 476:
+        '=item' outside of any '=over'
 
