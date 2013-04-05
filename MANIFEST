@@ -9,7 +9,6 @@ Makefile.PL
 MANIFEST
 META.yml
 README
-rinetd.pl
 t/callbacks1.t
 t/callbacks2.t
 t/callbacks3.t
