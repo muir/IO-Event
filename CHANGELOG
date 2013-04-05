@@ -1,4 +1,10 @@
 
+= 2013/04/04
+
+Remove rinetd.pl -- becoming its own module
+
+= 2013/03/20
+
 No longer required to start with IO::Event->new()
 
 fixed forked3.t, getline3.t, and multifork3.t tests
