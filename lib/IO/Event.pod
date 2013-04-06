@@ -643,6 +643,9 @@ Since the original writing of IO::Event, L<AnyEvent> has been
 released and now L<AnyEvent::AIO> and L<AnyEvent:Handle> should be
 considered the only good alternatives to IO::Event.
 
+For an example program using IO::Event, see L<IO::Event::rinetd>
+which used to be included in this package.
+
 =head1 BUGS
 
 The test suite only covers 40% of the code.  The module is used

@@ -515,6 +515,9 @@ SEE ALSO
     now AnyEvent::AIO and <AnyEvent:Handle> should be considered the only
     good alternatives to IO::Event.
 
+    For an example program using IO::Event, see IO::Event::rinetd which used
+    to be included in this package.
+
 BUGS
     The test suite only covers 40% of the code. The module is used by its
     author and seems solid.
