@@ -6,7 +6,7 @@ our $sdebug = 0;
 {
 package IO::Event;
 
-our $VERSION = 0.809;
+our $VERSION = 0.812;
 
 use strict;
 no strict 'refs';
@@ -692,8 +692,15 @@ sub accept
 			$newfh->peerhost, $newfh->peerport,
 			$newfh->sockhost, $newfh->sockport;
 	} elsif ($sd == &AF_UNIX) {
-		$desc = sprintf "Accepted socket from %s to %s",
-			$newfh->peerpath, $newfh->hostpath;
+		# Unset peerpath crashes on FreeBSD 9
+		my $pp = eval { $newfh->peerpath };
+		if ($pp) {
+			$desc = sprintf "Accepted socket from %s to %s",
+				$pp, $newfh->hostpath;
+		} else {
+			$desc = sprintf "Accepted socket from to %s",
+				$newfh->hostpath;
+		}
 	} else {
 		$desc = "Accept for ${*$self}{ie_desc}";
 	}
