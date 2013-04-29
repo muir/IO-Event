@@ -654,6 +654,7 @@ by its author and seems solid.
 =head1 LICENSE
 
 Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>.
-Copyright (C) 2011 Google, Inc.
+Copyright (C) 2011-2013 Google, Inc.
 This module may be used/copied/etc on the same terms as Perl itself.
 
+This module is packaged for Fedora by Emmanuel Seyman <emmanuel@seyman.fr>
