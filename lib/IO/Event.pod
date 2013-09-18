@@ -471,8 +471,6 @@ buffer drains.
 
 Close close immediately, even if there is output buffered.
 
-=back
-
 =item ->ie_desc([new description])
 
 Returns (and sets) the text description of the filehandle.  For debugging.

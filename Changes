@@ -1,5 +1,7 @@
 Revision history for Perl module IO::Event
 
+ - fixed a pod formatting goof
+
 0.813 2013/09/17
 
  - Spelling corrections contributed by x.guimard@free.fr

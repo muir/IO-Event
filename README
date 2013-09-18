@@ -530,10 +530,3 @@ LICENSE
     This module is packaged for Fedora by Emmanuel Seyman
     <emmanuel@seyman.fr>
 
-POD ERRORS
-    Hey! The above document had some coding errors, which are explained
-    below:
-
-    Around line 476:
-        '=item' outside of any '=over'
-
