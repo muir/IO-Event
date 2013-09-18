@@ -1,6 +1,7 @@
 Revision history for Perl module IO::Event
 
  - fixed a pod formatting goof
+ - fixed the repository line in the Makefile.PL
 
 0.813 2013/09/17
 
