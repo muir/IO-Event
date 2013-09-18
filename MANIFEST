@@ -1,4 +1,4 @@
-CHANGELOG
+Changes
 lib/IO/Event/Callback.pm
 lib/IO/Event/Event.pm
 lib/IO/Event/Emulate.pm

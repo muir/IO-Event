@@ -176,7 +176,7 @@ MANDATORY HANDLERS
 
     ie_input($handler, $ioe, $input_buffer_reference)
         Invoked when there is fresh data in the input buffer. The input can
-        be retreived via directly reading it from $$input_buffer_reference
+        be retrieved via directly reading it from $$input_buffer_reference
         or via "read()" from the $ioe filehandle, or by using a variety of
         standard methods for getting data:
 
@@ -472,7 +472,7 @@ EXAMPLE SERVER
             }
 
 SYSREAD and EOF
-    sysread() is incompatable with eof() because eof() uses getc(). Most of
+    sysread() is incompatible with eof() because eof() uses getc(). Most of
     the time this isn't a problem. In other words, some of the time this is
     a problem: lines go missing.
 
@@ -524,8 +524,11 @@ BUGS
 
 LICENSE
     Copyright (C) 2002-2009 David Muir Sharnoff <muir@idiom.org>. Copyright
-    (C) 2011 Google, Inc. This module may be used/copied/etc on the same
-    terms as Perl itself.
+    (C) 2011-2013 Google, Inc. This module may be used/copied/etc on the
+    same terms as Perl itself.
+
+    This module is packaged for Fedora by Emmanuel Seyman
+    <emmanuel@seyman.fr>
 
 POD ERRORS
     Hey! The above document had some coding errors, which are explained
