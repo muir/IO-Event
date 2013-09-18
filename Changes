@@ -1,6 +1,9 @@
 Revision history for Perl module IO::Event
 
+0.813 2013/09/17
+
  - Spelling corrections contributed by x.guimard@free.fr
+ - Replace CHANGELOG with Changes
 
 0.812 2013/04/09
 
