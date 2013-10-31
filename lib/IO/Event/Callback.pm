@@ -1,4 +1,3 @@
-
 package IO::Event::Callback;
 
 use strict;
@@ -157,5 +156,5 @@ for L<IO::Event> with the C<ie_> prefix removed.
 
 =head1 SEE ALSO
 
-See the source for L<RPC::ToWorker> for an exmaple use of IO::Event::Callback.
+See the source for L<RPC::ToWorker> for an example use of IO::Event::Callback.
 
