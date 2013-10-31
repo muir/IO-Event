@@ -1,4 +1,3 @@
-
 =head1 NAME
 
 IO::Event - Tied Filehandles for Nonblocking IO with Object Callbacks
@@ -38,7 +37,7 @@ system that just does the right thing w/o the user needing
 to think about it much.
 
 All APIs are kept as simple as possible yet at the same time,
-all functionality is accesible if needed.  Simple things are
+all functionality is accessible if needed.  Simple things are
 easy.  Hard things are possible.
 
 Most of the time file handling syntax will work fine:
@@ -170,7 +169,7 @@ Set to true if this is a read-only filehandle.  Do not accept output.
 
 =item write_only
 
-Set to true if this is a write-only filehandle.  Do not attept to read.
+Set to true if this is a write-only filehandle.  Do not attempt to read.
 
 =item autoread
 
@@ -247,7 +246,7 @@ If autoreading is turned off then this will be invoked.
 
 =item ie_werror($handler, $ioe, $output_buffer_reference)
 
-A write error has occured when trying to drain the write
+A write error has occurred when trying to drain the write
 buffer.  Provide an empty subroutine if you don't care.
 
 =back
@@ -423,7 +422,7 @@ This is mostly used internally in IO::Event.
 
 IO::Handle doesn't allow input_record_separator's on a per filehandle
 basis.  IO::Event does.  If you don't ever set a filehandle's input
-record separator, then it contineously defaults to the current value
+record separator, then it continuously defaults to the current value
 of C<$/>.  If you set it, then it will use your value and never
 look at C<$/> again.
 
@@ -458,7 +457,7 @@ Deprecated: use C<writeevents(1)> instead.
 Get/set reentrant callbacks.  By default, IO::Event avoids making
 reentrant callbacks.  This is good because your code is less likely
 to break.  This is bad because you won't learn about things right away.
-For example, you will not learn the the output buffer is overflowing
+For example, you will not learn the output buffer is overflowing
 during print().  You'll have to wait for the output buffer to begin
 draining to find out.  This could be a problem.
 
@@ -469,7 +468,7 @@ buffer drains.
 
 =item ->forceclose
 
-Close close immediately, even if there is output buffered.
+Close immediately, even if there is output buffered.
 
 =item ->ie_desc([new description])
 

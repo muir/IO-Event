@@ -1,4 +1,3 @@
-
 our $debug = 0;
 our $edebug = 0;
 our $sdebug = 0;
@@ -515,7 +514,7 @@ sub output_bufsize
 			${*$self}{ie_overflowinvoked} = 0;
 		}
 		# while this should trigger callbacks, we don't want to assume
-		# that our caller's code is re-enterant.
+		# that our caller's code is re-entrant.
 	}
 	return $old;
 }
