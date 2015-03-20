@@ -109,7 +109,7 @@ __END__
 
 =head1 NAME
 
- IO::Event::Callback - A closure based API for IO::Event
+IO::Event::Callback - A closure based API for IO::Event
 
 =head1 SYNOPSIS
 

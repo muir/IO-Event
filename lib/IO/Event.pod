@@ -217,7 +217,7 @@ input can be retrieved via directly reading it from
 C<$$input_buffer_reference> or via C<read()> from the
 $ioe filehandle, or by using a variety of standard
 methods for getting data: 
-	
+
 	<$ioe>			like IO::Handle
 	$ioe->get()		like Data::LineBuffer
 	$ioe->read()		like IO::Handle
