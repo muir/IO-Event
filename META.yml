@@ -2,6 +2,7 @@
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         IO-Event
 version:      0.603
+license:      perl
 version_from: Event.pm
 installdirs:  site
 requires:
